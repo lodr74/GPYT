@@ -1,0 +1,232 @@
+
+************************************************************************************
+Zac Corbit Challenge
+
+
+#def buildKey(Kl,Kc):  return [str(hex(ord((string.ascii_lowercase[Kl:]+string.ascii_lowercase[:Kl])[x])))[2:]+str(hex(ord(list(reversed((string.ascii_uppercase[-Kc:]+string.ascii_uppercase[:-Kc])))[x])))[2:] for x in range(0,26)]
+#def decode(msg):
+#   d = msg.split("Z")
+#   return "".join([string.ascii_lowercase[buildKey(int(d[1][:2]),int(d[1][2:])).index(x)] if x != "0x0x" else " " for x in ["".join(e) for e in izip_longest(*([iter(d[2])]*4))]])
+
+
+*************************************************************************************
+Chris Griffin Challenge
+HOW TO: 
+
+###
+# Put base 64 into zip file
+###
+
+import base64
+
+with open('zipped.zip', 'wb') as f:
+    f.write(base64.b64decode(data))
+
+###
+# Extract zipfile
+###
+
+import zipfile
+
+zipfile.ZipFile('zipped.zip').extractall('test')
+
+###
+# Find and run the server
+###
+
+import os
+# just to keep it all in python, but could open terminal / file explorer
+
+os.listdir('test')
+# ['success']
+
+os.listdir('test/success')
+# ['fun_server.py', '______.py']
+
+import subprocess
+
+proc = subprocess.Popen("python test/success/fun_server.py", shell=True)
+
+###
+# Find what port it's running on
+###
+
+# I would use netstat, but this keeps it in python
+
+import socket
+from contextlib import closing
+
+ports_open = []
+
+for i in range(1024, 20001): # range of possible ports it will be on, could be added to question
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+        if sock.connect_ex(("localhost", i)) == 0:
+            ports_open.append(i)
+
+print(ports_open)
+
+###
+# Read the message on the port
+###
+
+# Again, I would just use a web browser or requests, but here is a pure python check
+
+import httplib
+
+for port in ports_open:
+    host = httplib.HTTPConnection('localhost', port, timeout=1)
+    host.connect()
+    host.request("GET", "/")
+    print(host.getresponse().read())
+
+# You should know which is the right response :)
+
+proc.kill()
+
+*******************************************************************************************
+Matthew Cundari Challenge:
+#!/usr/bin/env python
+#Weirdpcap solve
+#By Matthew Cundari
+from scapy.all import *
+
+#write the pcap to a file, scapy complains if there is not an actual file...
+pcap64 = ###question data goes here###
+pcapfile = open('weirdpcap.pcap','wb')
+pcapfile.write(pcap64.decode('base64'))
+pcapfile.close()
+
+#read pcap
+p = rdpcap('weirdpcap.pcap')
+
+#grab the Most Significant Byte of the tcp checksum, decode the given string as zip, profit
+print ''.join([chr(x['IP']['TCP'].chksum>>8) for x in p]).decode('zip')
+
+*******************************************************************************************
+Dale Anderson Challenge:
+
+#!/usr/bin/env python
+#!/usr/bin/env python -tt
+import re
+import gzip
+import codecs
+from oletools.olevba import *
+
+# Grab the game data
+gd = #gamedata
+# Create a bytearray from the gamedata
+ba = bytearray(gd)
+# Make a file-like thing of the read bytes
+fio = cStringIO.StringIO(ba)
+# Open the file-like-thing as a gzipped file
+fio = gzip.GzipFile(fileobj=fio).read()
+# Create a VBA parsing object 
+vbaparser = VBA_Parser('dummy', data=fio)
+# Reveal the VBA code
+rev = vbaparser.reveal()
+# Extrat the Base64 encoded xcript
+b64 = re.findall(r'((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{4}){4,})',rev)
+# Close the parser
+vbaparser.close()
+# Decode the encoded string as UTF-16 (Powershell encodes base64 differently)
+script = codecs.decode(b64[0],'base64').decode('UTF-16')
+# Grab the third line
+answer = script.split('\n')[2]
+# Submit answer
+
+
+**************************************************************************************************
+Wayne Marsh - Infogroke 
+Answer blurb 
+
+def answer(d):
+    encrypted, basekey = d
+
+    # Try bases 1-49
+    candidates = []
+    for base in range(3, 50):
+        # Convert the key to the candidate base...
+        key = convert_base_string(basekey, base)
+
+        # ...XOR the encrypted text with that key
+        round1 = xor_string(encrypted, key)
+
+        # ..XOR that result with the base
+        round2 = xor_string(round1, base)
+
+        # Count the number of 'normal' looking characters and store this candidate
+        candidates.append((round2, base, count_normal_characters(round2)))
+
+    # Choose the candidate with the highest amount of normal characters
+    best = sorted(candidates, key=lambda x: x[2])[-1]
+    return (best[0], best[1])
+
+## Support functions below ##
+
+# Count the regular-looking characters in a string, so we can get a rough idea if it's a properly-decrypted plaintext
+def count_normal_characters(s):
+    normal = 0
+
+    # count a-z
+    for i in range(ord('a'), ord('z') + 1):
+        normal += len([c for c in s if chr(i) in s])
+
+    return normal
+
+# Convert a number string to an integer in a specific base
+def convert_base_string(num, base):
+    # Convert a digit in a numeric string up to base32 into an integer value (e.g. '4' = 4, 'a' = 10, 'g' = 18)
+    def digit_to_value(dig):
+        assert(len(dig) == 1)
+        if dig in '0123456789':
+            return int(dig)
+        else:
+            return ord(dig) - ord('a') + 10
+
+    num = num[::-1]
+    total = 0
+    baseIdx = 0
+    for dig in num:
+        total += digit_to_value(dig) * pow(base, baseIdx)
+        baseIdx += 1
+    return total
+
+# XOR each character of a string with a value
+def xor_string(s, key):
+    out = ""
+    for c in s:
+        out += chr(ord(c)^key)
+    return out
+
+*******************************************************************************************************
+
+QUESTION:
+Pieter-Jan Moreels (@PidgeyL) - You're dealing with a bunch of unstructured data. The only thing you know, is that the payload is separated over multiple dictionaries, as a string object, with the key "data". The server will give you this data in an incorrect JSON format. Send the payload back to the server, as a single string, in the order of the JSON.
+
+Solution:
+import json
+import collections
+
+def answer():
+    #data = game.data(_QUESTIONNR_)
+    data = "{'unstructured': [{'a key': 'a val','another key': ['more keys', 'data', {'data': 'We want '}]}, {'data': {'data': 'you to '}}],'more data': 'give us ','data': {'a key': 'like us ','data': 'bring us','another key': ['a rabbit', 'a swallow', {'data': {'key': 'a coconut','data': 'a shrubbery'}}]}}"
+    data = data.replace("'", '"')
+    data = json.loads(data, object_pairs_hook=collections.OrderedDict)
+    def recurse(part, key=None):
+        payload = []
+        if isinstance(part, list):
+            for item in part:
+                payload.append(recurse(item))
+        elif isinstance(part, dict):
+            for key, val in part.items():
+                payload.append(recurse(val, key=key))
+        elif isinstance(part, str):
+            if key=="data":
+                return part
+        return ''.join(payload)
+    print(recurse(data))
+    #game.answer(_QUESTIONNR_, recurse(data))
+
+answer()
+
+
